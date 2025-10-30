@@ -20,6 +20,9 @@ export default function PenjualanPage() {
     const [showProdukDropdown, setShowProdukDropdown] = useState(false);
     const productSearchRef = useRef(null);
 
+    // Cart modal state
+    const [showCartModal, setShowCartModal] = useState(false);
+
     // Fetch initial data
     const fetchData = async () => {
         const [resPenjualan, resPelanggan, resProduk] = await Promise.all([
@@ -61,40 +64,47 @@ export default function PenjualanPage() {
     // --- Product & Cart Logic ---
     const filteredProduk = produk.filter(p => p.nama.toLowerCase().includes(produkSearchTerm.toLowerCase()));
     const handleAddToCart = (p) => {
-        setCart(currentCart => {
-            const existingItem = currentCart.find(item => item.produkId === p.id);
-            if (existingItem) {
-                // Cek stok sebelum menambah
-                if (existingItem.jumlah >= p.stok) {
-                    toast.error(`Stok ${p.nama} tidak mencukupi!`);
-                    return currentCart;
-                }
-                return currentCart.map(item => 
-                    item.produkId === p.id ? { ...item, jumlah: item.jumlah + 1 } : item
-                );
-            } else {
-                if (p.stok < 1) {
-                    toast.error(`Stok ${p.nama} habis!`);
-                    return currentCart;
-                }
-                return [...currentCart, { produkId: p.id, nama: p.nama, harga: p.harga, jumlah: 1, stok: p.stok }];
+        const existingItem = cart.find(item => item.produkId === p.id);
+
+        if (existingItem) {
+            if (existingItem.jumlah >= p.stok) {
+                toast.error(`Stok ${p.nama} tidak mencukupi!`);
+                return;
             }
-        });
+            setCart(currentCart =>
+                currentCart.map(item =>
+                    item.produkId === p.id ? { ...item, jumlah: item.jumlah + 1 } : item
+                )
+            );
+        } else {
+            if (p.stok < 1) {
+                toast.error(`Stok ${p.nama} habis!`);
+                return;
+            }
+            setCart(currentCart => [
+                ...currentCart,
+                { produkId: p.id, nama: p.nama, harga: p.harga, jumlah: 1, stok: p.stok },
+            ]);
+        }
         setProdukSearchTerm('');
         setShowProdukDropdown(false);
     };
 
     const handleQuantityChange = (produkId, newJumlah) => {
-        setCart(currentCart => currentCart.map(item => {
-            if (item.produkId === produkId) {
-                if (newJumlah > item.stok) {
-                    toast.error(`Stok ${item.nama} hanya sisa ${item.stok}!`);
-                    return { ...item, jumlah: item.stok };
-                }
-                return { ...item, jumlah: newJumlah > 0 ? newJumlah : 1 };
-            }
-            return item;
-        }));
+        const itemToUpdate = cart.find(item => item.produkId === produkId);
+        if (!itemToUpdate) return;
+
+        if (newJumlah > itemToUpdate.stok) {
+            toast.error(`Stok ${itemToUpdate.nama} hanya sisa ${itemToUpdate.stok}!`);
+            setCart(currentCart => currentCart.map(item =>
+                item.produkId === produkId ? { ...item, jumlah: item.stok } : item
+            ));
+            return;
+        }
+
+        setCart(currentCart => currentCart.map(item =>
+            item.produkId === produkId ? { ...item, jumlah: newJumlah > 0 ? newJumlah : 1 } : item
+        ));
     };
 
     const handleRemoveFromCart = (produkId) => {
@@ -111,14 +121,14 @@ export default function PenjualanPage() {
             toast.dismiss(loadingToast);
 
             if (res.ok) {
-                toast.success('✅ Transaksi berhasil dihapus!');
+                toast.success('Transaksi berhasil dihapus!');
                 fetchData(); // Refresh data
             } else {
-                toast.error(`❌ Gagal: ${result.error || 'Terjadi kesalahan'}`);
+                toast.error(`Gagal: ${result.error || 'Terjadi kesalahan'}`);
             }
         } catch (error) {
             toast.dismiss(loadingToast);
-            toast.error(`❌ Error: ${error.message}`);
+            toast.error(`Error: ${error.message}`);
         }
     };
 
@@ -150,17 +160,18 @@ export default function PenjualanPage() {
             toast.dismiss(loadingToast);
 
             if (res.ok) {
-                toast.success('✅ Transaksi berhasil!');
+                toast.success('Transaksi berhasil!');
                 setCart([]);
                 setPelangganId('');
                 setSearchTerm('');
+                setShowCartModal(false);
                 fetchData(); // Refresh all data
             } else {
-                toast.error(`❌ Gagal: ${result.error || 'Terjadi kesalahan'}`);
+                toast.error(`Gagal: ${result.error || 'Terjadi kesalahan'}`);
             }
         } catch (error) {
             toast.dismiss(loadingToast);
-            toast.error(`❌ Error: ${error.message}`);
+            toast.error(`Error: ${error.message}`);
         }
     };
 
@@ -190,30 +201,85 @@ export default function PenjualanPage() {
                     </div>
                 </div>
 
-                {/* Cart */}
+                {/* Cart Button */}
                 {cart.length > 0 && (
-                    <div className="cart-section">
-                        <h2>Shopping Cart</h2>
-                        <table>
-                            <thead><tr><th>Product</th><th>Quantity</th><th>Price</th><th>Subtotal</th><th>Action</th></tr></thead>
-                            <tbody>
-                                {cart.map(item => (
-                                    <tr key={item.produkId}>
-                                        <td>{item.nama}</td>
-                                        <td><input type="number" value={item.jumlah} onChange={e => handleQuantityChange(item.produkId, parseInt(e.target.value))} min="1" max={item.stok} /></td>
-                                        <td>Rp {item.harga.toLocaleString()}</td>
-                                        <td>Rp {(item.harga * item.jumlah).toLocaleString()}</td>
-                                        <td><button type="button" onClick={() => handleRemoveFromCart(item.produkId)} className="delete-btn">Remove</button></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <h3 className="total-price">Total: Rp {totalBelanja.toLocaleString()}</h3>
-                    </div>
+                    <button 
+                        type="button" 
+                        className="cart-toggle-btn"
+                        onClick={() => setShowCartModal(true)}
+                    >
+                        View Cart ({cart.length} items) - Rp {totalBelanja.toLocaleString()}
+                    </button>
                 )}
 
                 <button type="submit" className="submit-sale-btn">Submit Sale</button>
             </form>
+
+            {/* Cart Modal */}
+            {showCartModal && (
+                <>
+                    <div className="modal-overlay" onClick={() => setShowCartModal(false)}></div>
+                    <div className="cart-modal">
+                        <div className="modal-header">
+                            <h2>Shopping Cart</h2>
+                            <button className="modal-close" onClick={() => setShowCartModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            {cart.length > 0 ? (
+                                <>
+                                    <table className="cart-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Quantity</th>
+                                                <th>Price</th>
+                                                <th>Subtotal</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {cart.map(item => (
+                                                <tr key={item.produkId}>
+                                                    <td><strong>{item.nama}</strong></td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            value={item.jumlah} 
+                                                            onChange={e => handleQuantityChange(item.produkId, parseInt(e.target.value))} 
+                                                            min="1" 
+                                                            max={item.stok}
+                                                            className="qty-input"
+                                                        />
+                                                    </td>
+                                                    <td>Rp {item.harga.toLocaleString()}</td>
+                                                    <td><strong>Rp {(item.harga * item.jumlah).toLocaleString()}</strong></td>
+                                                    <td>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleRemoveFromCart(item.produkId)} 
+                                                            className="remove-btn"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <div className="cart-total">
+                                        <h3>Total: Rp {totalBelanja.toLocaleString()}</h3>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="empty-cart">Your cart is empty</p>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn-secondary" onClick={() => setShowCartModal(false)}>Continue Shopping</button>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <h2>Recent Sales</h2>
             <table>
@@ -224,9 +290,11 @@ export default function PenjualanPage() {
                             <td>{pj.id}</td>
                             <td>{pj.pelanggan?.nama || 'N/A'}</td>
                             <td>{new Date(pj.tanggal).toLocaleString()}</td>
-                            <td>Rp {pj.total.toLocaleString()}</td>
+                            <td>Rp {(pj.total || 0).toLocaleString()}</td>
                             <td>
-                                <button type="button" onClick={() => handleHapusPenjualan(pj.id)} className="delete-btn">Delete</button>
+                                <div class="action-buttons">
+                                    <button type="button" onClick={() => handleHapusPenjualan(pj.id)} className="delete-btn">Hapus</button>
+                                </div>
                             </td>
                         </tr>
                     ))}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function DELETE(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     await prisma.$transaction(async (tx) => {

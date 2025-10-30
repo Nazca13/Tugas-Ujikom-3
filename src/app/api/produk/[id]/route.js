@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { nama, harga, stok } = await request.json();
 
     const updatedProduk = await prisma.produk.update({

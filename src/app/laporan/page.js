@@ -2,24 +2,51 @@
 import { useEffect, useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion } from 'framer-motion';
+import toast, { Toaster } from 'react-hot-toast';
 
-// Komponen untuk setiap bagian laporan
-const ReportCard = ({ title, value, isCurrency = false }) => (
-    <motion.div className="overview-card" whileHover={{ scale: 1.05 }}>
-        <h3>{title}</h3>
-        <p>{isCurrency ? `Rp ${value.toLocaleString()}` : value}</p>
+// Komponen Card untuk metrik
+const MetricCard = ({ title, value, isCurrency = false, icon }) => (
+    <motion.div 
+        className="metric-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -5, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+        transition={{ duration: 0.3 }}
+    >
+        <div className="metric-icon">{icon}</div>
+        <div className="metric-content">
+            <h3>{title}</h3>
+            <p className="metric-value">{isCurrency ? `Rp ${value.toLocaleString()}` : value.toLocaleString()}</p>
+        </div>
     </motion.div>
 );
 
-const LowStockWarning = ({ products }) => (
-    <div className="low-stock-warning">
-        <h4>⚠️ Low Stock Products</h4>
-        {products.length > 0 ? (
-            <ul>
-                {products.map(p => <li key={p.id}>{p.nama} (Sisa: {p.stok})</li>)}
-            </ul>
-        ) : <p>All products have sufficient stock.</p>}
-    </div>
+// Komponen untuk peringatan stok rendah
+const LowStockAlert = ({ products }) => (
+    <motion.div 
+        className="low-stock-alert"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+    >
+        <div className="alert-header">
+            <h3>Low Stock Alert</h3>
+        </div>
+        <div className="alert-content">
+            {products.length > 0 ? (
+                <ul className="stock-list">
+                    {products.map(p => (
+                        <li key={p.id} className="stock-item">
+                            <span className="product-name">{p.nama}</span>
+                            <span className="stock-badge">{p.stok} left</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="no-alert">All products have sufficient stock</p>
+            )}
+        </div>
+    </motion.div>
 );
 
 export default function LaporanPage() {
@@ -53,7 +80,7 @@ export default function LaporanPage() {
     }, [reportData.allSales, filters]);
 
     const summary = useMemo(() => {
-        const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+        const totalRevenue = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
         const totalTransactions = filteredSales.length;
         return { totalRevenue, totalTransactions };
     }, [filteredSales]);
@@ -61,75 +88,206 @@ export default function LaporanPage() {
     const dailyChartData = useMemo(() => {
         const grouped = filteredSales.reduce((acc, sale) => {
             const date = new Date(sale.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-            acc[date] = (acc[date] || 0) + sale.total;
+            acc[date] = (acc[date] || 0) + (sale.total || 0);
             return acc;
         }, {});
-        return Object.keys(grouped).map(date => ({ date, total: grouped[date] })).sort((a, b) => new Date(a.date) - new Date(b.date));
+        return Object.keys(grouped).map(date => ({ date, total: grouped[date] }));
     }, [filteredSales]);
 
-    if (loading) return <p>Loading report...</p>;
+    if (loading) {
+        return (
+            <main className="laporan-container">
+                <div className="loading-state">
+                    <div className="spinner"></div>
+                    <p>Loading report data...</p>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="laporan-container">
-            <motion.h1 className="laporan-title">Sales Report Dashboard</motion.h1>
+            <Toaster position="top-right" />
+            
+            <motion.div 
+                className="page-header"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <h1 className="page-title">Sales Report Dashboard</h1>
+                <p className="page-subtitle">Comprehensive overview of your sales performance</p>
+            </motion.div>
 
-            {/* Filters */}
-            <motion.section className="filter-section">
-                <select onChange={e => setFilters(f => ({ ...f, customerId: e.target.value }))} value={filters.customerId}>
-                    <option value="">All Customers</option>
-                    {reportData.customers.map(c => <option key={c.id} value={c.id}>{c.nama}</option>)}
-                </select>
-                <input type="date" onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))} value={filters.startDate} />
-                <input type="date" onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))} value={filters.endDate} />
+            {/* Filter Section */}
+            <motion.section 
+                className="filter-section"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+            >
+                <div className="filter-group">
+                    <label>Customer</label>
+                    <select 
+                        onChange={e => setFilters(f => ({ ...f, customerId: e.target.value }))} 
+                        value={filters.customerId}
+                        className="filter-select"
+                    >
+                        <option value="">All Customers</option>
+                        {reportData.customers.map(c => <option key={c.id} value={c.id}>{c.nama}</option>)}
+                    </select>
+                </div>
+                <div className="filter-group">
+                    <label>Start Date</label>
+                    <input 
+                        type="date" 
+                        onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))} 
+                        value={filters.startDate}
+                        className="filter-input"
+                    />
+                </div>
+                <div className="filter-group">
+                    <label>End Date</label>
+                    <input 
+                        type="date" 
+                        onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))} 
+                        value={filters.endDate}
+                        className="filter-input"
+                    />
+                </div>
             </motion.section>
 
-            {/* Summary Cards */}
-            <motion.section className="overview-section">
-                <ReportCard title="Total Revenue" value={summary.totalRevenue} isCurrency />
-                <ReportCard title="Total Transactions" value={summary.totalTransactions} />
-                <LowStockWarning products={reportData.lowStockProducts} />
-            </motion.section>
+            {/* Metrics Grid */}
+            <section className="metrics-grid">
+                <MetricCard 
+                    title="Total Revenue" 
+                    value={summary.totalRevenue} 
+                    isCurrency 
+                />
+                <MetricCard 
+                    title="Total Transactions" 
+                    value={summary.totalTransactions}
+                />
+                <LowStockAlert products={reportData.lowStockProducts} />
+            </section>
 
             {/* Charts */}
-            <motion.section className="chart-section">
-                <h2>Daily Sales Revenue</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={dailyChartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis tickFormatter={val => `Rp ${val / 1000}k`} />
-                        <Tooltip formatter={val => `Rp ${val.toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="total" fill="#090909" name="Revenue" />
-                    </BarChart>
-                </ResponsiveContainer>
+            <motion.section 
+                className="chart-section"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+            >
+                <div className="chart-header">
+                    <h2>Daily Sales Revenue</h2>
+                    <p className="chart-subtitle">Revenue breakdown by date</p>
+                </div>
+                {dailyChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={350}>
+                        <BarChart 
+                            data={dailyChartData}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        >
+                            <defs>
+                                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#090909" stopOpacity={0.9}/>
+                                    <stop offset="100%" stopColor="#404040" stopOpacity={0.8}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" opacity={0.5} />
+                            <XAxis 
+                                dataKey="date" 
+                                tick={{ fill: '#606060', fontSize: 12 }}
+                                axisLine={{ stroke: '#e0e0e0' }}
+                            />
+                            <YAxis 
+                                tickFormatter={val => `${(val / 1000000).toFixed(1)}M`}
+                                tick={{ fill: '#606060', fontSize: 12 }}
+                                axisLine={{ stroke: '#e0e0e0' }}
+                            />
+                            <Tooltip 
+                                formatter={(val) => [`Rp ${val.toLocaleString()}`, 'Revenue']}
+                                contentStyle={{
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                }}
+                                labelStyle={{ fontWeight: 'bold', color: '#090909' }}
+                            />
+                            <Bar 
+                                dataKey="total" 
+                                fill="url(#colorRevenue)" 
+                                radius={[8, 8, 0, 0]}
+                                maxBarSize={60}
+                            />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="chart-empty">
+                        <p>No data available for chart</p>
+                    </div>
+                )}
             </motion.section>
 
-            {/* Detailed Sales Table */}
-            <motion.section className="detail-section">
-                <h2>Transaction Details</h2>
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr><th>ID</th><th>Date</th><th>Customer</th><th>Items</th><th>Total</th></tr>
-                        </thead>
-                        <tbody>
-                            {filteredSales.map(sale => (
-                                <tr key={sale.id}>
-                                    <td>{sale.id}</td>
-                                    <td>{new Date(sale.tanggal).toLocaleString()}</td>
-                                    <td>{sale.pelanggan.nama}</td>
-                                    <td>
-                                        <ul>
-                                            {sale.detailPenjualan.map(d => <li key={d.id}>{d.produk.nama} (x{d.jumlah})</li>)}
-                                        </ul>
-                                    </td>
-                                    <td>Rp {sale.total.toLocaleString()}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* Transaction Details Table */}
+            <motion.section 
+                className="transactions-section"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+            >
+                <div className="section-header">
+                    <h2>Transaction Details</h2>
+                    <span className="transaction-count">{filteredSales.length} transactions</span>
                 </div>
+                
+                {filteredSales.length > 0 ? (
+                    <div className="table-wrapper">
+                        <table className="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th className="text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredSales.map(sale => (
+                                    <tr key={sale.id}>
+                                        <td><span className="badge badge-id">#{sale.id}</span></td>
+                                        <td>{new Date(sale.tanggal).toLocaleDateString('id-ID', { 
+                                            day: 'numeric', 
+                                            month: 'short', 
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}</td>
+                                        <td><strong>{sale.pelanggan.nama}</strong></td>
+                                        <td>
+                                            <div className="items-list">
+                                                {sale.detailPenjualan.map(d => (
+                                                    <span key={d.id} className="item-badge">
+                                                        {d.produk.nama} <span className="qty">×{d.jumlah}</span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="text-right">
+                                            <strong className="total-amount">Rp {(sale.total || 0).toLocaleString()}</strong>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <p>No transactions found for the selected filters</p>
+                    </div>
+                )}
             </motion.section>
         </main>
     );
