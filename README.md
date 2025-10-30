@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Proyek Pengelolaan Basis Data Transaksi
 
-## Getting Started
+Proyek ini adalah aplikasi web full-stack yang dibangun menggunakan Next.js dan Prisma untuk mengelola data transaksi, pelanggan, dan stok produk, sesuai dengan skenario tugas "Pengelolaan Basis Data".
 
-First, run the development server:
+## Fitur Utama
+
+- **Manajemen Produk**: CRUD (Create, Read, Update, Delete) untuk data produk.
+- **Manajemen Pelanggan**: CRUD (Create, Read, Update, Delete) untuk data pelanggan.
+- **Pencatatan Penjualan**: Antarmuka kasir untuk membuat transaksi penjualan yang melibatkan banyak produk.
+- **Kontrol Stok**: Stok produk divalidasi dan diperbarui secara otomatis setiap kali transaksi berhasil.
+- **Laporan Penjualan**: Halaman untuk melihat riwayat transaksi.
+
+---
+
+## Struktur Basis Data (ERD)
+
+Basis data ini terdiri dari empat entitas utama:
+
+1.  **Pelanggan**: Menyimpan data pelanggan.
+    - `id` (PK)
+    - `nama`
+    - `email`
+
+2.  **Produk**: Menyimpan data produk.
+    - `id` (PK)
+    - `nama`
+    - `harga`
+    - `stok`
+
+3.  **Penjualan**: Menyimpan data transaksi utama.
+    - `id` (PK)
+    - `tanggal`
+    - `pelangganId` (FK ke Pelanggan)
+
+4.  **DetailPenjualan**: Menyimpan rincian produk untuk setiap transaksi.
+    - `id` (PK)
+    - `penjualanId` (FK ke Penjualan)
+    - `produkId` (FK ke Produk)
+    - `jumlah`
+    - `subtotal`
+
+Relasi antar tabel sudah diatur menggunakan *foreign keys* dan `onDelete: Cascade` untuk menjaga integritas data.
+
+---
+
+## Panduan Instalasi dan Penggunaan
+
+### 1. Prasyarat
+
+- Node.js
+- npm / yarn / pnpm
+- PostgreSQL (atau database lain yang didukung Prisma)
+
+### 2. Instalasi
+
+- Clone repositori ini.
+- Salin file `.env.example` menjadi `.env` dan sesuaikan `DATABASE_URL` dengan koneksi database Anda.
+  ```
+  DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+  ```
+- Install dependensi:
+  ```bash
+  npm install
+  ```
+
+### 3. Migrasi Database
+
+Jalankan migrasi untuk membuat tabel di database Anda sesuai dengan skema Prisma.
+
+```bash
+npm prisma migrate dev
+```
+
+### 4. Seeding Data (Opsional)
+
+Isi database dengan data sampel untuk pengujian.
+
+```bash
+npm run prisma:seed
+```
+
+### 5. Menjalankan Aplikasi
+
+Jalankan server pengembangan.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplikasi akan tersedia di [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Alur Transaksi
 
-## Learn More
+Berikut adalah alur data saat sebuah transaksi penjualan dibuat melalui sistem:
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Pemilihan Pelanggan & Produk**: Pengguna memilih pelanggan dan menambahkan satu atau lebih produk ke dalam keranjang belanja di halaman 'Create New Sale'.
+2.  **Pengiriman Data**: Saat tombol 'Submit Sale' ditekan, frontend mengirim data `pelangganId` dan array `detail` (keranjang belanja) ke API endpoint `POST /api/penjualan`.
+3.  **Validasi di Backend**: API menerima data dan memulai `prisma.$transaction` untuk memastikan semua proses berjalan atau gagal bersamaan.
+4.  **Pengecekan Stok**: Sistem melakukan iterasi pada setiap item di keranjang dan memeriksa apakah `stok` di tabel `Produk` mencukupi. Jika ada satu saja produk yang stoknya kurang, seluruh transaksi dibatalkan dan pesan error dikirim kembali.
+5.  **Pembuatan Record**: 
+    - Sebuah record baru dibuat di tabel `Penjualan` dengan `pelangganId` dan `total` harga.
+    - Untuk setiap item di keranjang, sebuah record baru dibuat di tabel `DetailPenjualan`, menyimpan `penjualanId`, `produkId`, `jumlah`, `hargaSatuan` saat itu, dan `subtotal`.
+6.  **Update Stok**: Setelah detail penjualan dibuat, sistem mengurangi (`decrement`) nilai `stok` pada tabel `Produk` sesuai dengan jumlah yang dibeli.
+7.  **Konfirmasi**: Jika semua langkah di atas berhasil, transaksi di-commit ke database dan frontend menerima respons sukses, lalu membersihkan keranjang.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

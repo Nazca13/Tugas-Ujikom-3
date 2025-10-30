@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pelanggan {
+  id          Int      @id @default(autoincrement())
+  nama        String
+  alamat      String?
+  nomorTelepon String?
+  email       String   @unique
+  penjualan   Penjualan[]
+
+  @@index([nama])
+}
+
+model Produk {
+  id              Int      @id @default(autoincrement())
+  nama            String
+  harga           Float
+  stok            Int
+  detailPenjualan DetailPenjualan[]
+
+  @@index([nama])
+}
+
+model Penjualan {
+  id              Int               @id @default(autoincrement())
+  tanggal         DateTime          @default(now())
+  total           Float
+  pelangganId     Int
+  pelanggan       Pelanggan         @relation(fields: [pelangganId], references: [id], onDelete: Cascade)
+  detailPenjualan DetailPenjualan[]
+
+  @@index([tanggal])
+}
+
+model DetailPenjualan {
+  id          Int       @id @default(autoincrement())
+  penjualanId Int
+  produkId    Int
+  jumlah      Int
+  hargaSatuan Float // Menyimpan harga produk saat transaksi
+  subtotal    Float
+  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
+  produk      Produk    @relation(fields: [produkId], references: [id], onDelete: Cascade)
+}

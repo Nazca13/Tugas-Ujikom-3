@@ -1,66 +1,118 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useEffect, useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function Home() {
+  const [pelanggan, setPelanggan] = useState([]);
+  const [nama, setNama] = useState('');
+  const [email, setEmail] = useState('');
+
+  // Ambil data dari API
+  const fetchPelanggan = async () => {
+    const res = await fetch('/api/pelanggan');
+    const data = await res.json();
+    setPelanggan(data);
+  };
+
+  useEffect(() => {
+    fetchPelanggan();
+  }, []);
+
+  // Tambah pelanggan baru
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await fetch('/api/pelanggan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nama, email }),
+    });
+    setNama('');
+    setEmail('');
+    fetchPelanggan();
+  };
+
+  // Delete customer
+  const handleDelete = async (id) => {
+    if (confirm('Yakin ingin menghapus pelanggan ini? Semua data penjualan terkait juga akan terhapus!')) {
+      const loadingToast = toast.loading('Menghapus pelanggan dan semua data terkait...');
+      try {
+        const res = await fetch(`/api/pelanggan/${id}`, { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await res.json();
+        toast.dismiss(loadingToast);
+        
+        if (res.ok && data.success) {
+          toast.success('✅ Pelanggan dan semua data terkait berhasil dihapus!');
+          // Langsung update UI tanpa fetch ulang untuk responsivitas
+          setPelanggan(prev => prev.filter(p => p.id !== id));
+        } else {
+          toast.error(`❌ ${data.error || 'Gagal menghapus pelanggan'}`);
+          console.error('Delete failed:', data);
+        }
+      } catch (error) {
+        toast.dismiss(loadingToast);
+        toast.error('❌ Error saat menghapus pelanggan');
+        console.error('Delete error:', error);
+      }
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main>
+      <Toaster position="top-right" />
+      <h1>Customer Data</h1>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Name"
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          required
         />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button type="submit">Add Customer</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pelanggan.map((p) => (
+            <tr key={p.id}>
+              <td>{p.id}</td>
+              <td>{p.nama}</td>
+              <td>{p.email}</td>
+              <td>
+                <button onClick={() => handleDelete(p.id)} className="delete-btn" title="Hapus Pelanggan">
+                  <svg className="delete-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                  </svg>
+                  Hapus
+                </button>
+
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </main>
   );
 }
