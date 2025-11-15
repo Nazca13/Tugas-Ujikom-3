@@ -292,7 +292,7 @@ export default function PenjualanPage() {
                             <td>{new Date(pj.tanggal).toLocaleString()}</td>
                             <td>Rp {(pj.total || 0).toLocaleString()}</td>
                             <td>
-                                <div class="action-buttons">
+                                <div className="action-buttons">
                                     <button type="button" onClick={() => handleHapusPenjualan(pj.id)} className="delete-btn">Hapus</button>
                                 </div>
                             </td>

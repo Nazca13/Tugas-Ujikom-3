@@ -126,10 +126,11 @@ export default function PelangganPage() {
                             <td>{p.nama}</td>
                             <td>{p.email}</td>
                             <td>{p.alamat}</td>
-                            <td>{p.nomorTelepon}</td>
                             <td>
-                                <button onClick={() => handleEdit(p)} className="edit-btn">Edit</button>
-                                <button onClick={() => handleDelete(p.id)} className="delete-btn">Delete</button>
+                                <div className="action-buttons">
+                                    <button onClick={() => handleEdit(p)} className="edit-btn">Edit</button>
+                                    <button onClick={() => handleDelete(p.id)} className="delete-btn">Hapus</button>
+                                </div>
                             </td>
                         </tr>
                     ))}

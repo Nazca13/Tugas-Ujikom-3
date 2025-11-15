@@ -125,16 +125,11 @@ export default function ProdukPage() {
                             <td>{p.id}</td>
                             <td>{p.nama}</td>
                             <td>Rp {p.harga}</td>
-                            <td>{p.stok}</td>
                             <td>
-                                <button onClick={() => handleEdit(p)} className="edit-btn" title="Edit Produk">Edit</button>
-                                <button onClick={() => handleDelete(p.id)} className="delete-btn" title="Hapus Produk">
-                                    <svg className="delete-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
-                                    </svg>
-                                    Hapus
-                                </button>
-
+                                <div className="action-buttons">
+                                    <button onClick={() => handleEdit(p)} className="edit-btn">Edit</button>
+                                    <button onClick={() => handleDelete(p.id)} className="delete-btn">Hapus</button>
+                                </div>
                             </td>
                         </tr>
                     ))}
